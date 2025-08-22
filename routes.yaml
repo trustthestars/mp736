@@ -1,0 +1,14 @@
+default_ttl: 3600
+routes:
+  - match: {sector: health, partner: acme-hospital}
+    checks: [hipaa_dlp, encrypt_at_rest, mTLS]
+    deliver_via: health.fhir_v1
+    endpoint: https://api.acme-hospital.example/fhir
+  - match: {sector: financial}
+    checks: [pci_mask_pan, no_persistent_logs, mTLS, egress_whitelist]
+    deliver_via: financial.fix
+    endpoint: tcp://fix.contoso-bank.example:9876
+  - match: {sector: education}
+    checks: [ferpa_minimize, mTLS]
+    deliver_via: edu.xapi
+    endpoint: https://lrs.state-edu.example/xAPI/statements
