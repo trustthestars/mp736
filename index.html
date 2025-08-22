@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Processor Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Message Processor Dashboard</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Stats Panel -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Statistics</h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-gray-600">Total Messages</p>
+                        <p class="text-2xl font-bold" id="totalMsgs">0</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-600">Success Rate</p>
+                        <p class="text-2xl font-bold" id="successRate">0%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Message Panel -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">Send Test Message</h2>
+                <form hx-post="/send-message" hx-target="#messageLog" hx-swap="beforeend">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2" for="messageType">Message Type</label>
+                        <select id="messageType" name="message_type" class="w-full p-2 border rounded">
+                            <option value="message">Message</option>
+                            <option value="diagnostic">Diagnostic</option>
+                            <option value="observation">Observation</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+
+            <!-- System Status -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">System Status</h2>
+                <div class="space-y-2">
+                    <div class="flex items-center">
+                        <div id="statusIndicator" class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                        <span>Processor Status: <span id="statusText">Running</span></span>
+                    </div>
+                    <div class="pt-4">
+                        <button onclick="toggleProcessor()" id="toggleBtn" 
+                                class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                            Stop Processor
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Message Log -->
+        <div class="mt-8 bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Message Log</h2>
+                <button onclick="clearLogs()" class="text-sm text-gray-500 hover:text-gray-700">
+                    Clear Logs
+                </button>
+            </div>
+            <div id="messageLog" class="space-y-2 max-h-96 overflow-y-auto p-2 bg-gray-50 rounded">
+                <!-- Messages will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update stats every 2 seconds
+        function updateStats() {
+            fetch('/stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('totalMsgs').textContent = data.total_messages;
+                    document.getElementById('successRate').textContent = data.success_rate + '%';
+                });
+        }
+
+        // Toggle processor status
+        function toggleProcessor() {
+            const btn = document.getElementById('toggleBtn');
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (btn.textContent.includes('Stop')) {
+                fetch('/stop', { method: 'POST' });
+                btn.innerHTML = 'Start Processor';
+                btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                btn.classList.add('bg-green-500', 'hover:bg-green-600');
+                indicator.classList.remove('bg-green-500');
+                indicator.classList.add('bg-red-500');
+                statusText.textContent = 'Stopped';
+            } else {
+                fetch('/start', { method: 'POST' });
+                btn.innerHTML = 'Stop Processor';
+                btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                btn.classList.add('bg-red-500', 'hover:bg-red-600');
+                indicator.classList.remove('bg-red-500');
+                indicator.classList.add('bg-green-500');
+                statusText.textContent = 'Running';
+            }
+        }
+
+        // Clear logs
+        function clearLogs() {
+            document.getElementById('messageLog').innerHTML = '';
+        }
+
+        // Set up auto-refresh
+        setInterval(updateStats, 2000);
+        
+        // Initialize stats on page load
+        document.addEventListener('DOMContentLoaded', updateStats);
+
+        // Set up SSE for real-time updates
+        const eventSource = new EventSource('/events');
+        eventSource.onmessage = function(event) {
+            const log = document.getElementById('messageLog');
+            const message = JSON.parse(event.data);
+            const messageDiv = document.createElement('div');
+            
+            // Create appropriate styling based on message type
+            let bgColor = 'bg-white';
+            if (message.type === 'error') bgColor = 'bg-red-50';
+            else if (message.type === 'success') bgColor = 'bg-green-50';
+            
+            messageDiv.className = `p-3 mb-2 rounded border-l-4 ${message.type === 'error' ? 'border-red-500' : 'border-green-500'} ${bgColor}`;
+            messageDiv.innerHTML = `
+                <div class="flex justify-between">
+                    <span class="font-medium">${message.subject}</span>
+                    <span class="text-sm text-gray-500">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div class="mt-1 text-sm text-gray-600">${message.text}</div>
+            `;
+            
+            log.insertBefore(messageDiv, log.firstChild);
+        };
+    </script>
+</body>
+</html>
