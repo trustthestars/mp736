@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  nats:
+    image: nats:2.10
+    command: ["-js", "-sd", "/data"]
+    ports: ["4222:4222"]
+    volumes:
+      - nats:/data
+
+  proxy:
+    build: ./proxy
+    environment:
+      NATS_URL: nats://nats:4222
+      ROUTES_FILE: /routes/routes.yaml
+      OIDC_ISSUER: https://auth.your-domain.com/
+    volumes:
+      - ./deployments/routes.yaml:/routes/routes.yaml:ro
+    depends_on:
+      - nats
+    ports:
+      - "8081:8081"
+
+  worker-health:
+    build: ./workers/health
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      - nats
+
+  worker-financial:
+    build: ./workers/financial
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      - nats
+
+  worker-education:
+    build: ./workers/education
+    environment:
+      NATS_URL: nats://nats:4222
+    depends_on:
+      - nats
+
+volumes:
+  nats: {}
