@@ -1,0 +1,18 @@
+{
+    "envelope": {
+        "message_id": "uuid",
+        "from": "netx@app",
+        "to_sector": "health|financial|education",
+        "to_partner": "acme-hospital|contoso-bank|state-edu",
+        "subject": "Correlation report Q3",
+        "ttl_seconds": 3600,
+        "sensitivity": "normal|restricted|confidential"
+    },
+    "headers": {
+        "content_type": "application/json",
+        "hash": "sha256:_",
+        "signature_jws": "eyJ...",
+        "labels": ["no-trackers", "pii:tokenized"]
+    },
+    "payload": {}
+}
