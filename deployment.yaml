@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+      containers:
+      - name: app
+        image: your-image-name:latest
+        ports:
+        - containerPort: 8000
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 3000
+          readOnlyRootFilesystem: true
